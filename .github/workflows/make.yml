@@ -1,0 +1,96 @@
+name: 文章部署
+
+on:
+  schedule:
+    - cron: '18 13,22 * * *'  # 每小时运行
+  workflow_dispatch:      # 手动触发
+  push:
+    branches: [ main ]   # 当 main 分支有推送时也触发
+  issues:
+    types: [opened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+  issues: write
+
+jobs:
+  # 构建工作
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: 安装依赖
+        run: |
+          cd backend
+          pip install -r requirements.txt
+
+      - name: 更新文章信息
+        run: |
+          cd backend
+          python changeurl_to_md.py && python main.py
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 8
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: 安装前端依赖
+        run: |
+          cd frontend
+          pnpm install --no-frozen-lockfile
+
+      - name: 生成静态网页
+        run: |
+          cd frontend
+          pnpm build
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./frontend/dist
+          
+      - name: Commit changes
+        uses: actions-x/commit@v6
+        with:
+          email: immibo@qq.com
+          name: GitHub Actions Autocommitter
+          branch: main
+          files: frontend/src/data/articles.json
+          force: true
+          directory: .
+
+
+  # 部署工作
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

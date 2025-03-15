@@ -1,0 +1,3 @@
+# httpx==0.24.1 parsel tomd
+requests
+httpx==0.24.1
