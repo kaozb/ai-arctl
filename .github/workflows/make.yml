@@ -6,8 +6,8 @@ on:
   workflow_dispatch:      # 手动触发
   push:
     branches: [ main ]   # 当 main 分支有推送时也触发
-  issues:
-    types: [opened]
+  #issues:
+  #  types: [opened]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
